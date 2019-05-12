@@ -1,36 +1,48 @@
-//extern crate clap;
+extern crate clap;
 extern crate termion;
 extern crate rand;
 
 use std::io::{self, Read, Write};
-//use clap::{App, Arg};
+use std::collections::BTreeSet;
 
 struct TextShiftMatrix {
     width: u16,
     height: u16,
     cells: Vec<char>,
-    targetcells: Vec<char>
+    targetcells: Vec<char>,
+    vocabulary: BTreeSet<char>,
+    probability: f64,
+    defaulttarget: char
 }
 
+
 impl TextShiftMatrix {
-    fn newfullscreen() -> TextShiftMatrix {
+    fn newfullscreen(probability: f64, vocabulary: String, defaulttarget: char) -> TextShiftMatrix {
         let (width, height) = termion::terminal_size().unwrap();
-        TextShiftMatrix::new(width,height)
+        TextShiftMatrix::new(width,height,probability, vocabulary, defaulttarget)
     }
 
-    fn new(width: u16, height: u16) -> TextShiftMatrix {
+    fn new(width: u16, height: u16, probability: f64, vocabulary: String, defaulttarget: char) -> TextShiftMatrix {
         let mut m = TextShiftMatrix {
             width: width,
             height: height,
             cells: Vec::new(),
-            targetcells: Vec::new()
+            targetcells: Vec::new(),
+            vocabulary: BTreeSet::new(),
+            probability: probability,
+            defaulttarget: defaulttarget
         };
+        m.vocabulary.insert(defaulttarget);
+        for c in vocabulary.chars() {
+            m.vocabulary.insert(c);
+        }
+        let vocabulary: Vec<char> = m.vocabulary.iter().cloned().collect();
         let size = width*height;
         for _ in 0..size {
-            let choice: f64 = rand::random::<f64>() * (126.0 - 32.0) + 32.0;
-            let choice: u8 = choice.floor() as u8;
-            m.cells.push(choice as char);
-            m.targetcells.push(' ');
+            let choice: f64 = rand::random::<f64>() * vocabulary.len() as f64;
+            let choice: usize = choice.floor() as usize;
+            m.cells.push(vocabulary[choice]);
+            m.targetcells.push(defaulttarget);
         }
         m
     }
@@ -70,6 +82,7 @@ impl TextShiftMatrix {
                 offset = 0;
                 continue;
             }
+            self.vocabulary.insert(c);
             if let Some(index) = self.getindex(x+ offset,y) {
                 self.targetcells[index] = c;
             }
@@ -78,13 +91,18 @@ impl TextShiftMatrix {
     }
 
     fn tick(&mut self) {
+        let vocabulary: Vec<char> = self.vocabulary.iter().cloned().collect();
         for x in 0..self.width {
             for y in 0..self.height {
                 let index = self.getindex(x,y).unwrap();
                 if self.cells[index] != self.targetcells[index] {
-                    let choice: f64 = rand::random::<f64>() * (126.0 - 32.0) + 32.0;
-                    let choice: u8 = choice.floor() as u8;
-                    self.cells[index] = choice as char;
+                    if rand::random::<f64>() <= self.probability {
+                        self.cells[index] = self.targetcells[index];
+                    } else {
+                        let choice: f64 = rand::random::<f64>() * vocabulary.len() as f64;
+                        let choice: usize = choice.floor() as usize;
+                        self.cells.push(vocabulary[choice]);
+                    }
                 }
             }
         }
@@ -134,9 +152,39 @@ impl TextShiftMatrix {
 }
 
 fn main() {
+    let argmatches = clap::App::new("Textshift")
+        .version("0.1")
+        .author("Maarten van Gompel (proycon) <proycon@anaproy.nl>")
+        .about("Render text from garbage")
+        .arg(clap::Arg::with_name("vocabulary")
+            .help("Vocabulary as a string")
+            .short("v")
+            .long("vocabulary")
+            .takes_value(true)
+            .default_value("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ!@#$%^&*(){}[]?.,<>;:' ")
+        )
+        .arg(clap::Arg::with_name("defaulttarget")
+            .help("Vocabulary as a string")
+            .short("t")
+            .long("defaulttarget")
+            .takes_value(true)
+            .default_value(" ")
+        )
+        .arg(clap::Arg::with_name("probability")
+             .help("Probability")
+             .long("probability")
+             .short("p")
+             .takes_value(true)
+             .default_value("0.01")
+        )
+        .get_matches();
+    let defaulttarget: String = argmatches.value_of("defaulttarget").unwrap().to_string();
+    let defaulttarget: char = defaulttarget.chars().last().unwrap();
+    let probability: f64 = argmatches.value_of("probability").unwrap().parse().unwrap();
+
     let stdout = io::stdout();
     let mut stdout = stdout.lock();
-    let mut matrix = TextShiftMatrix::newfullscreen();
+    let mut matrix = TextShiftMatrix::newfullscreen(probability, argmatches.value_of("vocabulary").unwrap().to_string(), defaulttarget );
     let mut inputbuffer = String::new();
     io::stdin().read_to_string(&mut inputbuffer).unwrap();
     matrix.printcenter(inputbuffer);
