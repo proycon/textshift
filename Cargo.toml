@@ -1,0 +1,10 @@
+[package]
+name = "textshift"
+version = "0.1.0"
+authors = ["Maarten van Gompel <proycon@anaproy.nl>"]
+edition = "2018"
+
+[dependencies]
+termion = "*"
+rand = "*"
+clap = "*"
