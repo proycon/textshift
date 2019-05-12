@@ -82,7 +82,6 @@ impl TextShiftMatrix {
                 offset = 0;
                 continue;
             }
-            self.vocabulary.insert(c);
             if let Some(index) = self.getindex(x+ offset,y) {
                 self.targetcells[index] = c;
             }
@@ -101,7 +100,7 @@ impl TextShiftMatrix {
                     } else {
                         let choice: f64 = rand::random::<f64>() * vocabulary.len() as f64;
                         let choice: usize = choice.floor() as usize;
-                        self.cells.push(vocabulary[choice]);
+                        self.cells[index] = vocabulary[choice];
                     }
                 }
             }
@@ -155,7 +154,7 @@ fn main() {
     let argmatches = clap::App::new("Textshift")
         .version("0.1")
         .author("Maarten van Gompel (proycon) <proycon@anaproy.nl>")
-        .about("Render text from garbage")
+        .about("Text emerges from noise")
         .arg(clap::Arg::with_name("vocabulary")
             .help("Vocabulary as a string")
             .short("v")
