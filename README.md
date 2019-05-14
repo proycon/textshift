@@ -5,6 +5,12 @@ A command-line gadget to let text emerge from noise. Not very useful but just fo
 The tool reads text from standard input.
 
 
+## Build
+
+```
+$ cargo build
+```
+
 ## Examples
 
 ```
